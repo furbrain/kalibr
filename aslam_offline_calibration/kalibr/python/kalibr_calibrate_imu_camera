@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 print("importing libraries")
 import sm
 import kalibr_common as kc
@@ -67,7 +67,7 @@ def parseArgs():
     
     #data source
     groupData = parser.add_argument_group('Dataset source')
-    groupData.add_argument('--bag', dest='bagfile', nargs=1, help='Ros bag file containing image and imu data (rostopics specified in the yamls)', action=Once, required=True)
+    groupData.add_argument('--bag', dest='bagfile', nargs=1, help='ROS 1 (.bag) or ROS 2 (bag directory / .db3 / .mcap) bag containing image and imu data (topics specified in the yamls)', action=Once, required=True)
     groupData.add_argument('--bag-from-to', metavar='bag_from_to', type=float, nargs=2, help='Use the bag data starting from up to this time [s]')
     groupData.add_argument('--bag-freq', metavar='bag_freq', type=float, help='Frequency to extract features at [hz]')
     groupData.add_argument('--perform-synchronization',  action='store_true', dest='perform_synchronization', \
@@ -215,7 +215,7 @@ def main():
     util.printResults(iCal, withCov=parsed.recover_cov)
     print("")
 
-    bagtag = os.path.splitext(parsed.bagfile[0])[0]
+    bagtag = os.path.splitext(os.path.normpath(parsed.bagfile[0]))[0]
     yamlFilename = bagtag + "-camchain-imucam.yaml"
     iCal.saveCamChainParametersYaml(yamlFilename)
     print("Results written to:")

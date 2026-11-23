@@ -32,10 +32,9 @@
 # POSSIBILITY OF SUCH DAMAGE.
 
 import sys
-import roslib
-roslib.load_manifest('sm_logging')
+import os
 
-base_path = roslib.packages.get_pkg_dir('sm_logging')
+base_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
 
 def add_macro(f, caps_name, enum_name):
     f.write('#if (SMCONSOLE_MIN_SEVERITY > SMCONSOLE_SEVERITY_%s)\n' %(caps_name))

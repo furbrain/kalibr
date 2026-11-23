@@ -1,8 +1,5 @@
 ![Kalibr](https://raw.githubusercontent.com/wiki/ethz-asl/kalibr/images/kalibr_small.png)
 
-[![ROS1 Ubuntu 20.04](https://github.com/ethz-asl/kalibr/actions/workflows/docker_2004_build.yaml/badge.svg)](https://github.com/ethz-asl/kalibr/actions/workflows/docker_2004_build.yaml)
-[![ROS1 Ubuntu 18.04](https://github.com/ethz-asl/kalibr/actions/workflows/docker_1804_build.yaml/badge.svg)](https://github.com/ethz-asl/kalibr/actions/workflows/docker_1804_build.yaml)
-[![ROS1 Ubuntu 16.04](https://github.com/ethz-asl/kalibr/actions/workflows/docker_1604_build.yaml/badge.svg)](https://github.com/ethz-asl/kalibr/actions/workflows/docker_1604_build.yaml)
 
 ## Introduction
 Kalibr is a toolbox that solves the following calibration problems:
@@ -12,7 +9,35 @@ Kalibr is a toolbox that solves the following calibration problems:
 1. **Multi-Inertial Calibration (IMU-IMU)**: Spatial and temporal calibration of an IMU w.r.t a base inertial sensor along with IMU intrinsic parameters (requires 1-aiding camera sensor).
 1. **Rolling Shutter Camera Calibration**: Full intrinsic calibration (projection, distortion and shutter parameters) of rolling shutter cameras.
 
-To install follow the [install wiki page](https://github.com/ethz-asl/kalibr/wiki/installation) instructions for which you can either use Docker or install from source in a ROS workspace.
+This branch builds the **offline calibration tools without ROS**: plain CMake plus a pip package.
+Bags are read with the pure Python [rosbags](https://gitlab.com/ternaris/rosbags) library, so both
+ROS 1 bags (`*.bag`) and ROS 2 bags (bag directory, `*.db3` or `*.mcap`) work without any ROS installation.
+The live tools `kalibr_camera_focus` and `kalibr_camera_validator` need ROS and are not part of this build.
+
+### Install (Ubuntu 24.04)
+```bash
+sudo apt install build-essential cmake python3-dev python3-venv \
+    python3-numpy python3-scipy python3-matplotlib python3-yaml python3-igraph \
+    python3-pyx python3-pil python3-opencv python3-tk \
+    libboost-all-dev libeigen3-dev libsuitesparse-dev libopencv-dev
+python3 -m venv --system-site-packages ~/kalibr-venv
+~/kalibr-venv/bin/pip install scikit-build-core rosbags
+~/kalibr-venv/bin/pip install --no-build-isolation --no-deps .
+export PATH=~/kalibr-venv/bin:$PATH
+kalibr_calibrate_cameras --bag my_ros2_bag/ --topics /cam0/image_raw --models pinhole-radtan --target april.yaml
+```
+`--no-build-isolation` makes the extension modules build against the system numpy and Boost.Python that
+they run with. Alternatively build with CMake directly (`cmake -S . -B build && cmake --build build -j`)
+and use the tools from the build tree with `PYTHONPATH=build/python build/bin/kalibr_calibrate_cameras ...`,
+or use `Dockerfile_ubuntu_24_04`.
+
+Showing the calibration report window additionally needs wxPython (`sudo apt install python3-wxgtk4.0`);
+use `--dont-show-report` for headless runs. `tests/smoke_test.py` runs camera (`--bag-format ros2|mcap|ros1`)
+and camera-IMU (`--imu`) calibrations on synthetic data and checks the results against the ground truth.
+
+`kalibr_bagcreater` writes a ROS 2 bag (or a ROS 1 bag if the output name ends in `.bag`).
+
+The original ROS 1 instructions are on the [install wiki page](https://github.com/ethz-asl/kalibr/wiki/installation).
 Please find more information on the [wiki pages](https://github.com/ethz-asl/kalibr/wiki) of this repository.
 For questions or comments, please open an issue on Github.
 

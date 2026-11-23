@@ -1,15 +1,13 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 print("importing libraries")
 
-import rosbag
-import rospy
-from sensor_msgs.msg import Image
-from sensor_msgs.msg import Imu
 import time, sys, os
 import argparse
 import cv2
-import numpy as np
 import csv
+
+import numpy as np
+from rosbags.typesys import Stores, get_typestore
 
 #structure
 # dataset/cam0/TIMESTAMP.png
@@ -17,9 +15,11 @@ import csv
 # dataset/imu.csv
 
 #setup the argument list
-parser = argparse.ArgumentParser(description='Create a ROS bag using the images and imu data.')
+parser = argparse.ArgumentParser(description='Create a ROS bag using the images and imu data. '
+                                 'Writes a ROS 1 bag if the output name ends in .bag, otherwise a ROS 2 bag directory.')
 parser.add_argument('--folder',  metavar='folder', nargs='?', help='Data folder')
-parser.add_argument('--output-bag', metavar='output_bag',  default="output.bag", help='ROS bag file %(default)s')
+parser.add_argument('--output-bag', metavar='output_bag',  default="output.bag", help='Output bag %(default)s')
+parser.add_argument('--storage', choices=['sqlite3', 'mcap'], default='sqlite3', help='ROS 2 storage format %(default)s')
 
 #print help if no argument is specified
 if len(sys.argv)<2:
@@ -65,42 +65,80 @@ def getImuCsvFiles(dir):
     
     return imu_files
 
+ROS1 = parsed.output_bag.endswith('.bag')
+typestore = get_typestore(Stores.ROS1_NOETIC if ROS1 else Stores.ROS2_HUMBLE)
+Image = typestore.types['sensor_msgs/msg/Image']
+Imu = typestore.types['sensor_msgs/msg/Imu']
+Header = typestore.types['std_msgs/msg/Header']
+Time = typestore.types['builtin_interfaces/msg/Time']
+Quaternion = typestore.types['geometry_msgs/msg/Quaternion']
+Vector3 = typestore.types['geometry_msgs/msg/Vector3']
+
+def makeHeader(timestamp_ns, frame_id):
+    stamp = Time(sec=timestamp_ns // 1000000000, nanosec=timestamp_ns % 1000000000)
+    if ROS1:
+        return Header(seq=0, stamp=stamp, frame_id=frame_id)
+    return Header(stamp=stamp, frame_id=frame_id)
+
+def serialize(msg):
+    if ROS1:
+        return typestore.serialize_ros1(msg, msg.__msgtype__)
+    return typestore.serialize_cdr(msg, msg.__msgtype__)
+
 def loadImageToRosMsg(filename, cam_name):
     image_np = cv2.imread(filename, cv2.IMREAD_GRAYSCALE)
-    
-    timestamp_nsecs = os.path.splitext(os.path.basename(filename))[0]
-    timestamp = rospy.Time( secs=int(timestamp_nsecs[0:-9]), nsecs=int(timestamp_nsecs[-9:]) )
 
-    rosimage = Image()
-    rosimage.header.stamp = timestamp
-    rosimage.header.frame_id = cam_name
-    rosimage.height = image_np.shape[0]
-    rosimage.width = image_np.shape[1]
-    rosimage.step = rosimage.width  #only with mono8! (step = width * byteperpixel * numChannels)
-    rosimage.encoding = "mono8"
-    rosimage.data = image_np.tobytes()
-    
+    timestamp = int(os.path.splitext(os.path.basename(filename))[0])
+
+    rosimage = Image(
+        header=makeHeader(timestamp, cam_name),
+        height=image_np.shape[0],
+        width=image_np.shape[1],
+        encoding="mono8",
+        is_bigendian=0,
+        step=image_np.shape[1],  #only with mono8! (step = width * byteperpixel * numChannels)
+        data=np.ascontiguousarray(image_np).reshape(-1))
+
     return rosimage, timestamp
 
 def createImuMessge(timestamp_int, omega, alpha, imu_name):
-    timestamp_nsecs = str(timestamp_int)
-    timestamp = rospy.Time( int(timestamp_nsecs[0:-9]), int(timestamp_nsecs[-9:]) )
-    
-    rosimu = Imu()
-    rosimu.header.stamp = timestamp
-    rosimu.header.frame_id = imu_name
-    rosimu.angular_velocity.x = float(omega[0])
-    rosimu.angular_velocity.y = float(omega[1])
-    rosimu.angular_velocity.z = float(omega[2])
-    rosimu.linear_acceleration.x = float(alpha[0])
-    rosimu.linear_acceleration.y = float(alpha[1])
-    rosimu.linear_acceleration.z = float(alpha[2])
-    
+    timestamp = int(timestamp_int)
+    zero_cov = np.zeros(9, dtype=np.float64)
+
+    rosimu = Imu(
+        header=makeHeader(timestamp, imu_name),
+        orientation=Quaternion(x=0.0, y=0.0, z=0.0, w=1.0),
+        orientation_covariance=zero_cov,
+        angular_velocity=Vector3(x=float(omega[0]), y=float(omega[1]), z=float(omega[2])),
+        angular_velocity_covariance=zero_cov,
+        linear_acceleration=Vector3(x=float(alpha[0]), y=float(alpha[1]), z=float(alpha[2])),
+        linear_acceleration_covariance=zero_cov)
+
     return rosimu, timestamp
-    
+
+class BagWriter(object):
+    def __init__(self, path):
+        if ROS1:
+            from rosbags.rosbag1 import Writer
+            self.writer = Writer(path)
+        else:
+            from rosbags.rosbag2 import Writer, StoragePlugin
+            plugin = StoragePlugin.MCAP if parsed.storage == 'mcap' else StoragePlugin.SQLITE3
+            self.writer = Writer(path, version=9, storage_plugin=plugin)
+        self.writer.open()
+        self.connections = {}
+
+    def write(self, topic, msg, timestamp):
+        if topic not in self.connections:
+            self.connections[topic] = self.writer.add_connection(topic, msg.__msgtype__, typestore=typestore)
+        self.writer.write(self.connections[topic], timestamp, serialize(msg))
+
+    def close(self):
+        self.writer.close()
+
 #create the bag
+bag = BagWriter(parsed.output_bag)
 try:
-    bag = rosbag.Bag(parsed.output_bag, 'w')
     
     #write images
     camfolders = getCamFoldersFromDir(parsed.folder)

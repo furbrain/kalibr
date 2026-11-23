@@ -26,7 +26,15 @@
 
 #include <cholmod.h>
 #include <SuiteSparseQR.hpp>
+#if defined(SPQR_MAIN_VERSION) && SPQR_MAIN_VERSION >= 4
+// spqr.hpp is no longer installed; spqr_maxcolnorm is still exported.
+template <typename Entry, typename Int>
+double spqr_maxcolnorm(cholmod_sparse* A, cholmod_common* cc);
+#define KALIBR_SPQR_MAXCOLNORM spqr_maxcolnorm<double, int64_t>
+#else
 #include <spqr.hpp>
+#define KALIBR_SPQR_MAXCOLNORM spqr_maxcolnorm<double>
+#endif
 
 #include "aslam/calibration/exceptions/OutOfBoundException.h"
 #include "aslam/calibration/exceptions/InvalidOperationException.h"
@@ -269,7 +277,7 @@ namespace aslam {
         throw NullPointerException("cholmod", __FILE__, __LINE__,
           __PRETTY_FUNCTION__);
       return 20.0 * static_cast<double>(A->nrow + A->ncol) * eps *
-        spqr_maxcolnorm<double>(A, cholmod);
+        KALIBR_SPQR_MAXCOLNORM(A, cholmod);
     }
 
     double svGap(const Eigen::VectorXd& sv, std::ptrdiff_t rank) {
