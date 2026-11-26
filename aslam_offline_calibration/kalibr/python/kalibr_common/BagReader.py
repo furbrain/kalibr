@@ -13,7 +13,9 @@ import cv2
 import numpy as np
 
 from rosbags.highlevel import AnyReader
-from rosbags.typesys import Stores, get_typestore
+from rosbags.interfaces import MessageDefinitionFormat
+from rosbags.rosbag2 import Reader as Rosbag2Reader
+from rosbags.typesys import Stores, get_typestore, get_types_from_msg
 
 
 def _resolvePath(bagfile):
@@ -24,6 +26,48 @@ def _resolvePath(bagfile):
     if path.is_file() and path.suffix in ('.db3', '.mcap') and (path.parent / 'metadata.yaml').exists():
         return path.parent
     return path
+
+
+class _Rosbag2DirReader(object):
+    """ROS 2 bag directory reader with the subset of the AnyReader interface used here.
+
+    AnyReader picks the bag format from the file suffix, so a ROS 2 bag
+    directory named e.g. "ros2.bag" would be opened as a ROS 1 bag.
+    """
+
+    def __init__(self, path):
+        self._reader = Rosbag2Reader(path)
+        self.typestore = get_typestore(Stores.ROS2_HUMBLE)
+
+    def open(self):
+        self._reader.open()
+        self.connections = self._reader.connections
+        # Register message types the bag defines but the typestore lacks.
+        types = {}
+        for connection in self.connections:
+            if (connection.msgtype not in self.typestore.types
+                    and connection.msgdef.format == MessageDefinitionFormat.MSG):
+                types.update(get_types_from_msg(connection.msgdef.data, connection.msgtype))
+        if types:
+            self.typestore.register(types)
+
+    def messages(self, connections=()):
+        return self._reader.messages(connections=connections)
+
+    def deserialize(self, rawdata, msgtype):
+        return self.typestore.deserialize_cdr(rawdata, msgtype)
+
+    def close(self):
+        self._reader.close()
+
+
+def _openBag(bagfile):
+    path = _resolvePath(bagfile)
+    if path.is_dir():
+        # ROS 2 bags are directories (metadata.yaml + storage files).
+        return _Rosbag2DirReader(path)
+    # ROS 1 bags are single files.
+    return AnyReader([path])
 
 
 def stampToNsec(stamp):
@@ -45,10 +89,7 @@ class BagTopicReader(object):
         if topic is None:
             raise RuntimeError("Please pass in a topic name for bag {0}".format(bagfile))
 
-        # The default typestore is used for ROS 2 bags that do not embed their
-        # message definitions; ROS 1 bags always embed them.
-        self._reader = AnyReader([_resolvePath(bagfile)],
-                                 default_typestore=get_typestore(Stores.ROS2_HUMBLE))
+        self._reader = _openBag(bagfile)
         self._reader.open()
         try:
             connections = [c for c in self._reader.connections if c.topic == topic]
