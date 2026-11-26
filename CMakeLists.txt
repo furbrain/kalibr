@@ -29,17 +29,19 @@ find_package(Python3 REQUIRED COMPONENTS Interpreter Development.Module NumPy)
 
 if(SKBUILD)
   # Building a wheel with scikit-build-core: everything goes to site-packages.
-  set(_py_dir_default "${SKBUILD_PLATLIB_DIR}")
-  set(_bin_dir_default "${SKBUILD_SCRIPTS_DIR}")
+  # These directories change on every pip run, so they must not be cached:
+  # a reused build tree would otherwise install into a stale temp directory.
+  set(KALIBR_PYTHON_INSTALL_DIR "${SKBUILD_PLATLIB_DIR}")
+  set(KALIBR_BIN_INSTALL_DIR "${SKBUILD_SCRIPTS_DIR}")
+  set(KALIBR_LIB_INSTALL_DIR "${KALIBR_PYTHON_INSTALL_DIR}/kalibr_libs")
 else()
-  set(_py_dir_default
-    "${CMAKE_INSTALL_LIBDIR}/python${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR}/site-packages")
-  set(_bin_dir_default "${CMAKE_INSTALL_BINDIR}")
+  set(KALIBR_PYTHON_INSTALL_DIR
+    "${CMAKE_INSTALL_LIBDIR}/python${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR}/site-packages"
+    CACHE PATH "Where the Python packages are installed")
+  set(KALIBR_BIN_INSTALL_DIR "${CMAKE_INSTALL_BINDIR}" CACHE PATH "Where the kalibr_* scripts are installed")
+  set(KALIBR_LIB_INSTALL_DIR "${KALIBR_PYTHON_INSTALL_DIR}/kalibr_libs" CACHE PATH
+    "Where the Kalibr C++ shared libraries are installed")
 endif()
-set(KALIBR_PYTHON_INSTALL_DIR "${_py_dir_default}" CACHE PATH "Where the Python packages are installed")
-set(KALIBR_BIN_INSTALL_DIR "${_bin_dir_default}" CACHE PATH "Where the kalibr_* scripts are installed")
-set(KALIBR_LIB_INSTALL_DIR "${KALIBR_PYTHON_INSTALL_DIR}/kalibr_libs" CACHE PATH
-  "Where the Kalibr C++ shared libraries are installed")
 # Python packages and extension modules are also assembled here, so the build
 # can be used directly with PYTHONPATH=<build>/python.
 set(KALIBR_PYTHON_BUILD_DIR "${CMAKE_BINARY_DIR}/python")
