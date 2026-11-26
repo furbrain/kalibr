@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 print("importing libraries")
 
 import kalibr_common as kc
@@ -20,8 +20,8 @@ except ImportError:
 
 
 #setup the argument list
-parser = argparse.ArgumentParser(description='Extract a ROS bag containing a image and imu topics.')
-parser.add_argument('--bag', metavar='bag', help='ROS bag file')
+parser = argparse.ArgumentParser(description='Extract images and IMU data from a ROS 1 or ROS 2 bag.')
+parser.add_argument('--bag', metavar='bag', help='ROS 1 (.bag) or ROS 2 (bag directory / .db3 / .mcap) bag')
 parser.add_argument('--image-topics',  metavar='image_topics', nargs='+', help='Image topics %(default)s')
 parser.add_argument('--imu-topics',  metavar='imu_topics', nargs='+', help='Imu topics %(default)s')
 parser.add_argument('--output-folder',  metavar='output_folder', nargs='?', default="output", help='Output folder %(default)s')
@@ -89,7 +89,7 @@ if parsed.imu_topics is not None:
           spamwriter.writerow(["timestamp", "omega_x", "omega_y", "omega_z", "alpha_x", "alpha_y", "alpha_z"])
       
           for timestamp, omega, alpha in dataset:
-            timestamp_int = int(timestamp.toSec()*1e9)
+            timestamp_int = timestamp.secs * 1000000000 + timestamp.nsecs  # exact, no float rounding
             spamwriter.writerow([timestamp_int, omega[0],omega[1],omega[2], alpha[0],alpha[1],alpha[2] ])
             iProgress.sample()
           print("\r      done.                                                          ")

@@ -19,7 +19,7 @@ import scipy.optimize
 
 
 def initCameraBagDataset(bagfile, topic, from_to, freq, perform_synchronization):
-    print("Initializing camera rosbag dataset reader:")
+    print("Initializing camera bag dataset reader:")
     print("\tDataset:          {0}".format(bagfile))
     print("\tTopic:            {0}".format(topic))
     reader = kc.BagImageDatasetReader(bagfile, topic, bag_from_to=from_to, bag_freq=freq, \
@@ -28,7 +28,7 @@ def initCameraBagDataset(bagfile, topic, from_to, freq, perform_synchronization)
     return reader
 
 def initImuBagDataset(bagfile, topic, from_to=None, perform_synchronization=False):
-    print("Initializing imu rosbag dataset reader:")
+    print("Initializing imu bag dataset reader:")
     print("\tDataset:          {0}".format(bagfile))
     print("\tTopic:            {0}".format(topic))
     reader = kc.BagImuDatasetReader(bagfile, topic, bag_from_to=from_to, \

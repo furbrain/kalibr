@@ -1,0 +1,27 @@
+FROM ubuntu:24.04
+
+# ROS-independent build of the Kalibr offline calibration tools.
+#   docker build -t kalibr -f Dockerfile_ubuntu_24_04 .
+#   docker run -it -v /path/to/data:/data kalibr
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+	build-essential cmake git \
+	python3-dev python3-pip python3-venv \
+	python3-numpy python3-scipy python3-matplotlib python3-yaml \
+	python3-igraph python3-pyx python3-pil python3-opencv python3-tk \
+	libboost-all-dev libeigen3-dev libsuitesparse-dev libopencv-dev \
+	libtbb-dev libblas-dev liblapack-dev \
+	&& rm -rf /var/lib/apt/lists/*
+
+ADD . /kalibr
+
+# Use the system numpy/Boost.Python so the extension modules match them.
+RUN python3 -m venv --system-site-packages /opt/kalibr && \
+	/opt/kalibr/bin/pip install scikit-build-core rosbags && \
+	/opt/kalibr/bin/pip install --no-build-isolation --no-deps /kalibr
+
+ENV PATH=/opt/kalibr/bin:$PATH
+# Use the manual focal length if it fails to init
+# https://github.com/ethz-asl/kalibr/pull/346
+ENV KALIBR_MANUAL_FOCAL_LENGTH_INIT=1
+WORKDIR /data
+CMD ["/bin/bash"]

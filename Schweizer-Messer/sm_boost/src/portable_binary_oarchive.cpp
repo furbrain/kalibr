@@ -9,7 +9,13 @@
 //  See http://www.boost.org for updates, documentation, and revision history.
 
 #include <ostream>
-#include <boost/detail/endian.hpp>
+#include <boost/predef/other/endian.h>
+// boost/detail/endian.hpp was removed in Boost 1.73; provide its macros.
+#if BOOST_ENDIAN_BIG_BYTE && !defined(BOOST_BIG_ENDIAN)
+#define BOOST_BIG_ENDIAN
+#elif BOOST_ENDIAN_LITTLE_BYTE && !defined(BOOST_LITTLE_ENDIAN)
+#define BOOST_LITTLE_ENDIAN
+#endif
 #include <boost/portable_binary_oarchive.hpp>
 
 namespace boost {

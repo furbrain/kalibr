@@ -445,7 +445,12 @@ namespace aslam {
     template<typename I>
     void Cholmod<I>::getR(cholmod_sparse* A, cholmod_sparse** R) {
       cholmod_sparse* qrJ = cholmod_l_transpose(A, 1, &_cholmod);
+#if defined(SPQR_MAIN_VERSION) && SPQR_MAIN_VERSION >= 4
+      // SuiteSparseQR >= 4 is also templated on the index type.
+      SuiteSparseQR<double, SuiteSparse_long>(SPQR_ORDERING_FIXED, SPQR_NO_TOL, qrJ->ncol, 0,
+#else
       SuiteSparseQR<double>(SPQR_ORDERING_FIXED, SPQR_NO_TOL, qrJ->ncol, 0,
+#endif
         qrJ, NULL, NULL, NULL, NULL, R, NULL, NULL, NULL, NULL, &_cholmod);
       SM_ASSERT_EQ(Exception, _cholmod.status, CHOLMOD_OK,
         "QR factorization failed");

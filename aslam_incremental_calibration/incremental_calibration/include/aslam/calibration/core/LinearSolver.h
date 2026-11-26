@@ -38,7 +38,9 @@
 
 #include "aslam/calibration/core/LinearSolverOptions.h"
 
-template <typename Entry> struct SuiteSparseQR_factorization;
+// SuiteSparseQR_factorization has one template parameter before SuiteSparse 7
+// and two afterwards, so it cannot be forward declared portably.
+#include <SuiteSparseQR.hpp>
 
 namespace sm {
 

@@ -35,7 +35,9 @@ struct cholmod_dense_struct;
 typedef cholmod_dense_struct cholmod_dense;
 struct cholmod_common_struct;
 typedef cholmod_common_struct cholmod_common;
-template <typename Entry> struct SuiteSparseQR_factorization;
+// SuiteSparseQR_factorization has one template parameter before SuiteSparse 7
+// and two afterwards, so it cannot be forward declared portably.
+#include <SuiteSparseQR.hpp>
 
 namespace aslam {
   namespace calibration {

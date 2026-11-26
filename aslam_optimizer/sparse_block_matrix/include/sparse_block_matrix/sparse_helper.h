@@ -75,7 +75,7 @@ namespace {
   template<>
   struct IntType< long >
   {
-      static const int intType = CHOLMOD_INTLONG;
+      static const int intType = CHOLMOD_LONG; // long row indices and column pointers
   };
   template<>
   struct IntType< int >

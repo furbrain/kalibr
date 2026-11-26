@@ -1,12 +1,20 @@
 # import wxversion
 # wxversion.ensureMinimal('2.8')
 
-import wx
-import wx.aui
-import matplotlib as mpl
-from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg as Canvas
-from matplotlib.backends.backend_wx import NavigationToolbar2Wx as Toolbar
 import collections
+
+# wxPython is only needed to show the plot window; keep the module importable
+# without it (e.g. for headless calibration runs).
+try:
+    import wx
+    import wx.aui
+    import matplotlib as mpl
+    from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg as Canvas
+    from matplotlib.backends.backend_wx import NavigationToolbar2Wx as Toolbar
+    _WX_IMPORT_ERROR = None
+except ImportError as e:
+    wx = None
+    _WX_IMPORT_ERROR = e
 
 class PlotCollection:
     def __init__(self, window_name="", window_size=(800,600)):
@@ -54,15 +62,18 @@ class PlotCollection:
         """
         if len(list(self.figureList.keys())) == 0:
             return
+        if wx is None:
+            raise ImportError("Showing plots requires wxPython (e.g. apt install python3-wxgtk4.0): {0}".format(_WX_IMPORT_ERROR))
         app = wx.App()
         frame = wx.Frame(None,-1,self.frame_name, size=self.window_size)
-        plotter = self.PlotNotebook(frame)
+        plotter = _PlotNotebook(frame)
         for name in list(self.figureList.keys()):
             plotter.add(name, self.figureList[name])
         frame.Show()
         app.MainLoop()
         
-    class Plot(wx.Panel):
+if wx is not None:
+    class _Plot(wx.Panel):
         def __init__(self, parent, fig, id = -1, dpi = None, **kwargs):
             wx.Panel.__init__(self, parent, id=id, **kwargs)
             fig.set_figheight(2)
@@ -76,7 +87,7 @@ class PlotCollection:
             sizer.Add(self.toolbar, 0 , wx.LEFT | wx.EXPAND)
             self.SetSizer(sizer)
     
-    class PlotNotebook(wx.Panel):
+    class _PlotNotebook(wx.Panel):
         def __init__(self, parent, id = -1):
             wx.Panel.__init__(self, parent, id=id)
             self.nb = wx.aui.AuiNotebook(self)
@@ -85,5 +96,5 @@ class PlotCollection:
             self.SetSizer(sizer)
     
         def add(self,name, fig):
-           page = PlotCollection.Plot(self.nb, fig)
+           page = _Plot(self.nb, fig)
            self.nb.AddPage(page,name)

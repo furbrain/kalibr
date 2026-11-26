@@ -1,0 +1,36 @@
+[build-system]
+requires = ["scikit-build-core>=0.8", "numpy"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "kalibr"
+version = "1.0.0"
+description = "Kalibr offline camera, camera-IMU and rolling shutter calibration (ROS independent)"
+readme = "README.md"
+license = { text = "BSD-3-Clause" }
+requires-python = ">=3.8"
+dependencies = [
+  "numpy",
+  "scipy",
+  "matplotlib",
+  "pyyaml",
+  "python-igraph",
+  "pyx",
+  "Pillow",
+  "rosbags>=0.10",
+  "opencv-python-headless",
+]
+
+[project.optional-dependencies]
+# Only needed for the mv_cameras/ImageSnappyMsg image type.
+snappy = ["python-snappy"]
+
+[tool.scikit-build]
+cmake.version = ">=3.16"
+build.verbose = false
+wheel.packages = []
+# The C++ build is large; reuse it between `pip install` runs.
+build-dir = "build/{wheel_tag}"
+
+[tool.scikit-build.cmake.define]
+KALIBR_BUILD_TESTS = "OFF"
