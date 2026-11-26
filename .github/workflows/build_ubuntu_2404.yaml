@@ -30,7 +30,12 @@ jobs:
           python3 -m venv --system-site-packages venv
           venv/bin/pip install scikit-build-core rosbags
           venv/bin/pip install --no-build-isolation --no-deps .
+          # Regression test: reinstalling with the reused build tree must
+          # produce a complete wheel, not an empty one.
+          venv/bin/pip install --no-build-isolation --no-deps --force-reinstall .
+          venv/bin/python -c "import sm, aslam_cv, kalibr_common, kalibr_camera_calibration"
           export PATH=$PWD/venv/bin:$PATH
           python tests/smoke_test.py
           python tests/smoke_test.py --bag-format ros1
+          python tests/smoke_test.py --bag-format ros2-dotbag
           python tests/smoke_test.py --imu

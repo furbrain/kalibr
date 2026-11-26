@@ -9,7 +9,9 @@ With --imu it instead simulates a smooth camera trajectory with a rigidly
 attached IMU and checks that kalibr_calibrate_imu_camera recovers the
 camera-IMU transformation.
 
-Usage: tests/smoke_test.py [--keep] [--bag-format ros2|mcap|ros1] [--imu]
+Usage: tests/smoke_test.py [--keep] [--bag-format ros2|mcap|ros2-dotbag|ros1] [--imu]
+
+ros2-dotbag is a ROS 2 (mcap) bag directory named calib_ros2.bag.
 The kalibr_* tools must be on PATH (or set KALIBR_BIN_DIR).
 """
 import argparse
@@ -236,11 +238,18 @@ def runImuTest(work, bag_format):
 
 
 def makeBag(work, bag_format):
-    bag = {'ros2': 'calib_bag', 'mcap': 'calib_bag', 'ros1': 'calib.bag'}[bag_format]
+    bag = {'ros2': 'calib_bag', 'mcap': 'calib_bag', 'ros2-dotbag': 'calib_bag', 'ros1': 'calib.bag'}[bag_format]
     cmd = tool('kalibr_bagcreater') + ['--folder', 'data', '--output-bag', bag]
-    if bag_format == 'mcap':
+    if bag_format in ('mcap', 'ros2-dotbag'):
         cmd += ['--storage', 'mcap']
     subprocess.check_call(cmd, cwd=work)
+    if bag_format == 'ros2-dotbag':
+        # Regression test: a ROS 2 bag *directory* whose name ends in ".bag"
+        # must still be read as ROS 2 (the bag format must not be guessed
+        # from the suffix). kalibr_bagcreater would write a ROS 1 bag for
+        # such a name, so rename the directory afterwards.
+        os.rename(os.path.join(work, bag), os.path.join(work, 'calib_ros2.bag'))
+        bag = 'calib_ros2.bag'
     return bag
 
 
@@ -261,7 +270,7 @@ def tool(name):
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--keep', action='store_true', help='keep the temporary directory')
-    parser.add_argument('--bag-format', choices=['ros2', 'mcap', 'ros1'], default='ros2')
+    parser.add_argument('--bag-format', choices=['ros2', 'mcap', 'ros2-dotbag', 'ros1'], default='ros2')
     parser.add_argument('--imu', action='store_true', help='run the camera-IMU calibration test')
     args = parser.parse_args()
 
