@@ -1,0 +1,6 @@
+accelerometer_noise_density: 0.0009961252264620393
+accelerometer_random_walk: 8.528895026931483e-05
+gyroscope_noise_density: 0.0006310895475187677
+gyroscope_random_walk: 8.581361665275098e-06
+rostopic: /imu/imu_rect
+update_rate: 200
